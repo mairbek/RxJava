@@ -1375,6 +1375,16 @@ public class Observable<T> {
         });
     }
 
+    public static <T> Observable<Boolean> all(final Observable<T> sequence, final Func1<T, Boolean> predicate) {
+        Observable<Boolean> booleanStream = map(sequence, predicate);
+        return scan(booleanStream, new Func2<Boolean, Boolean, Boolean>() {
+            @Override
+            public Boolean call(Boolean x, Boolean y) {
+                return x && y;
+            }
+        });
+    }
+
     /**
      * Returns an Observable that skips the first <code>num</code> items emitted by the source
      * Observable. You can ignore the first <code>num</code> items emitted by an Observable and attend
