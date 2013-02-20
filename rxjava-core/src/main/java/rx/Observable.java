@@ -1377,7 +1377,7 @@ public class Observable<T> {
 
     public static <T> Observable<Boolean> all(final Observable<T> sequence, final Func1<T, Boolean> predicate) {
         Observable<Boolean> booleanStream = map(sequence, predicate);
-        return scan(booleanStream, new Func2<Boolean, Boolean, Boolean>() {
+        return reduce(booleanStream, new Func2<Boolean, Boolean, Boolean>() {
             @Override
             public Boolean call(Boolean x, Boolean y) {
                 return x && y;
@@ -2631,6 +2631,51 @@ public class Observable<T> {
             sequenceEqual(first, second).subscribe(result);
             verify(result, times(2)).onNext(true);
             verify(result, times(1)).onNext(false);
+        }
+
+        @Test
+        public void testAll() {
+            Observable<Integer> obs = toObservable(1, 2, 3);
+            Observable<Boolean> all = all(obs, new Func1<Integer, Boolean>() {
+                @Override
+                public Boolean call(Integer integer) {
+                    return integer > 0;
+                }
+            });
+            Observer<Boolean> result = mock(Observer.class);
+            all.subscribe(result);
+            verify(result, times(1)).onNext(true);
+            verify(result, times(1)).onCompleted();
+        }
+
+        @Test
+        public void testAllNegative() {
+            Observable<Integer> obs = toObservable(1, -2, 3);
+            Observable<Boolean> all = all(obs, new Func1<Integer, Boolean>() {
+                @Override
+                public Boolean call(Integer integer) {
+                    return integer > 0;
+                }
+            });
+            Observer<Boolean> result = mock(Observer.class);
+            all.subscribe(result);
+            verify(result, times(1)).onNext(false);
+            verify(result, times(1)).onCompleted();
+        }
+
+        @Test
+        public void testAllEmpty() {
+            Observable<Integer> obs = toObservable();
+            Observable<Boolean> all = all(obs, new Func1<Integer, Boolean>() {
+                @Override
+                public Boolean call(Integer integer) {
+                    return integer > 0;
+                }
+            });
+            Observer<Boolean> result = mock(Observer.class);
+            all.subscribe(result);
+            verify(result, times(1)).onNext(null);
+            verify(result, times(1)).onCompleted();
         }
 
     }
