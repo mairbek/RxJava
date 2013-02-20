@@ -1375,12 +1375,37 @@ public class Observable<T> {
         });
     }
 
+    /**
+     * Determines whether all elements of an observable sequence satisfies a condition.
+     * @param sequence an observable sequence whose elements to apply the predicate to.
+     * @param predicate a function to test each element for a condition.
+     * @param <T> the type of observable.
+     * @return true if all elements of an observable sequence satisfies a condition; otherwise, false.
+     */
     public static <T> Observable<Boolean> all(final Observable<T> sequence, final Func1<T, Boolean> predicate) {
         Observable<Boolean> booleanStream = map(sequence, predicate);
         return reduce(booleanStream, new Func2<Boolean, Boolean, Boolean>() {
             @Override
             public Boolean call(Boolean x, Boolean y) {
                 return x && y;
+            }
+        });
+    }
+
+    /**
+     * Determines whether all elements of an observable sequence satisfies a condition.
+     * @param sequence an observable sequence whose elements to apply the predicate to.
+     * @param predicate a function to test each element for a condition.
+     * @param <T> the type of observable.
+     * @return true if all elements of an observable sequence satisfies a condition; otherwise, false.
+     */
+    public static <T> Observable<Boolean> all(final Observable<T> sequence, Object predicate) {
+        final FuncN _f = Functions.from(predicate);
+
+        return all(sequence, new Func1<T, Boolean>() {
+            @Override
+            public Boolean call(T t) {
+                return (Boolean) _f.call(t);
             }
         });
     }
@@ -2403,6 +2428,24 @@ public class Observable<T> {
      */
     public Observable<T> scan(final T initialValue, final Object accumulator) {
         return scan(this, initialValue, accumulator);
+    }
+
+    /**
+     * Determines whether all elements of an observable sequence satisfies a condition.
+     * @param predicate a function to test each element for a condition.
+     * @return true if all elements of an observable sequence satisfies a condition; otherwise, false.
+     */
+    public Observable<Boolean> all(Func1<T, Boolean> predicate) {
+        return all(this, predicate);
+    }
+
+    /**
+     * Determines whether all elements of an observable sequence satisfies a condition.
+     * @param predicate a function to test each element for a condition.
+     * @return true if all elements of an observable sequence satisfies a condition; otherwise, false.
+     */
+    public Observable<Boolean> all(Object predicate) {
+        return all(this, predicate);
     }
 
     /**

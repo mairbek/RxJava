@@ -224,6 +224,12 @@ def class ObservableTests {
     }
 
     @Test
+    public void testAll() {
+        Observable.toObservable(1, 2, 3).all({ x -> x > 0 }).subscribe({ result -> a.received(result) });
+        verify(a, times(1)).received(true);
+    }
+
+    @Test
     public void testForEachWithError() {
         try {
             Observable.create(new AsyncObservable()).forEach({ result -> throw new RuntimeException('err')});
