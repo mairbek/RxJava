@@ -36,6 +36,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import rx.observables.GroupedObservable;
+import rx.operators.OperationBuffer;
 import rx.operators.OperationConcat;
 import rx.operators.OperationDefer;
 import rx.operators.OperationDematerialize;
@@ -796,6 +797,18 @@ public class Observable<T> {
      */
     public static <T> Observable<T> defer(Func0<Observable<T>> observableFactory) {
         return _create(OperationDefer.defer(observableFactory));
+    }
+
+    /**
+     * Indicates each element of an observable sequence into consecutive non-overlapping buffers which are produced based on element count information.
+     *
+     * @param source the source observable to produce buffers over.
+     * @param count  the length of each buffer.
+     * @param <T>    the type of the observable.
+     * @return an observable sequence of buffers.
+     */
+    public static <T> Observable<List<T>> buffer(Observable<T> source, int count) {
+        return _create(OperationBuffer.buffer(source, count));
     }
 
     /**
@@ -2396,6 +2409,16 @@ public class Observable<T> {
             }
 
         });
+    }
+
+    /**
+     * Indicates each element of an observable sequence into consecutive non-overlapping buffers which are produced based on element count information.
+     *
+     * @param count  the length of each buffer.
+     * @return an observable sequence of buffers.
+     */
+    public Observable<List<T>> buffer(int count) {
+        return _create(OperationBuffer.buffer(this, count));
     }
 
     /**
