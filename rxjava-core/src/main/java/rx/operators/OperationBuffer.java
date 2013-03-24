@@ -17,22 +17,28 @@ import static org.mockito.Mockito.*;
 public final class OperationBuffer {
 
     public static <T> Func1<Observer<List<T>>, Subscription> buffer(Observable<T> source, int count) {
+        return buffer(source, count, 0);
+    }
+
+    public static <T> Func1<Observer<List<T>>, Subscription> buffer(Observable<T> source, int count, int skip) {
         if (count <= 0) {
             throw new IllegalArgumentException("count should be > 0");
         }
-        return new CountingBufferedObservable<T>(source, count);
+        return new CountingBufferedObservable<T>(source, count, skip);
     }
 
     private static class CountingBufferedObservable<T> implements Func1<Observer<List<T>>, Subscription> {
         private final Observable<T> source;
-        private final int bufSize;
+        private final int emitStart;
+        private final int emitEnd;
 
         private final AtomicInteger counter = new AtomicInteger(0);
         private final ConcurrentLinkedQueue<T> buf = new ConcurrentLinkedQueue<T>();
 
-        private CountingBufferedObservable(Observable<T> source, int bufSize) {
+        private CountingBufferedObservable(Observable<T> source, int count, int skip) {
             this.source = source;
-            this.bufSize = bufSize;
+            this.emitStart = skip;
+            this.emitEnd = skip + count;
         }
 
         @Override
@@ -58,12 +64,16 @@ public final class OperationBuffer {
                 public void onNext(T args) {
 
                     int i = counter.incrementAndGet();
-                    buf.add(args);
+                    boolean skipItem = (i + emitStart) % emitEnd <= emitStart;
+                    boolean emitItem = (i + emitStart) % emitEnd == 0;
 
-                    if (i % bufSize == 0) {
+                    if (!skipItem || emitItem) {
+                        buf.add(args);
+                    }
+
+                    if (emitItem) {
                         List<T> chunk = getChunk();
                         observer.onNext(chunk);
-
                     }
 
                 }
@@ -72,7 +82,7 @@ public final class OperationBuffer {
                     List<T> result = new ArrayList<T>();
 
                     int i = 0;
-                    int size = Math.min(buf.size(), bufSize);
+                    int size = Math.min(buf.size(), emitEnd);
                     while (i < size) {
                         result.add(buf.poll());
                         i++;
@@ -152,6 +162,21 @@ public final class OperationBuffer {
             observable.subscribe(obs);
 
             verify(obs, times(1)).onNext(Arrays.asList("one", "two"));
+            verify(obs, times(1)).onCompleted();
+            verifyNoMoreInteractions(obs);
+
+        }
+
+        @Test
+        public void testSkip() {
+            Observable<List<String>> observable = Observable.create(buffer(Observable.<String>from("one", "two", "three", "four", "five"), 1, 2));
+
+            Observer<List<String>> obs = mock(Observer.class);
+
+            observable.subscribe(obs);
+
+            verify(obs, times(1)).onNext(Arrays.asList("one"));
+            verify(obs, times(1)).onNext(Arrays.asList("four"));
             verify(obs, times(1)).onCompleted();
             verifyNoMoreInteractions(obs);
 
