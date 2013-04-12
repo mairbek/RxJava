@@ -32,9 +32,6 @@ public final class OperationBuffer {
         private final int emitStart;
         private final int emitEnd;
 
-        private final AtomicInteger counter = new AtomicInteger(0);
-        private final ConcurrentLinkedQueue<T> buf = new ConcurrentLinkedQueue<T>();
-
         private CountingBufferedObservable(Observable<T> source, int count, int skip) {
             this.source = source;
             this.emitStart = skip;
@@ -43,56 +40,71 @@ public final class OperationBuffer {
 
         @Override
         public Subscription call(final Observer<List<T>> observer) {
-            return source.subscribe(new Observer<T>() {
-                @Override
-                public void onCompleted() {
-                    List<T> chunk = getChunk();
-
-                    if (!chunk.isEmpty()) {
-                        observer.onNext(chunk);
-                    }
-
-                    observer.onCompleted();
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    observer.onError(e);
-                }
-
-                @Override
-                public void onNext(T args) {
-
-                    int i = counter.incrementAndGet();
-                    boolean skipItem = (i + emitStart) % emitEnd <= emitStart;
-                    boolean emitItem = (i + emitStart) % emitEnd == 0;
-
-                    if (!skipItem || emitItem) {
-                        buf.add(args);
-                    }
-
-                    if (emitItem) {
-                        List<T> chunk = getChunk();
-                        observer.onNext(chunk);
-                    }
-
-                }
-
-                private List<T> getChunk() {
-                    List<T> result = new ArrayList<T>();
-
-                    int i = 0;
-                    int size = Math.min(buf.size(), emitEnd);
-                    while (i < size) {
-                        result.add(buf.poll());
-                        i++;
-                    }
-
-                    return result;
-                }
-            });
+            return source.subscribe(new CountingBufferedObserver(observer));
         }
+
+        private class CountingBufferedObserver implements Observer<T> {
+
+            private final Observer<List<T>> underlying;
+
+            private final AtomicInteger counter = new AtomicInteger(0);
+            private final ConcurrentLinkedQueue<T> buf = new ConcurrentLinkedQueue<T>();
+
+            private CountingBufferedObserver(Observer<List<T>> underlying) {
+                this.underlying = underlying;
+            }
+
+            @Override
+            public void onCompleted() {
+                List<T> chunk = getChunk();
+
+                if (!chunk.isEmpty()) {
+                    underlying.onNext(chunk);
+                }
+
+                underlying.onCompleted();
+            }
+
+            @Override
+            public void onError(Exception e) {
+                underlying.onError(e);
+            }
+
+            @Override
+            public void onNext(T args) {
+
+                int i = counter.incrementAndGet();
+                boolean skipItem = (i + emitStart) % emitEnd <= emitStart;
+                boolean emitItem = (i + emitStart) % emitEnd == 0;
+
+                if (!skipItem || emitItem) {
+                    buf.add(args);
+                }
+
+                if (emitItem) {
+                    List<T> chunk = getChunk();
+                    underlying.onNext(chunk);
+                }
+
+            }
+
+            private List<T> getChunk() {
+                List<T> result = new ArrayList<T>();
+
+                int i = 0;
+                int size = Math.min(buf.size(), emitEnd);
+                while (i < size) {
+                    result.add(buf.poll());
+                    i++;
+                }
+
+                return result;
+            }
+
+        }
+
     }
+
 
     public static class UnitTest {
 
