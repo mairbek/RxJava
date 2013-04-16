@@ -75,34 +75,42 @@ import java.util.concurrent.atomic.AtomicReference;
     }
 
 
+    /**
+     * Lock-free queue implementation from "The Art of Multiprocessor Programming" book with small changes.
+     * Enqueue operation returns boolean flag indicating whether it is a first element added to the queue.
+     */
     private static class Queue<T> {
-        private static final Node EMPTY = new Node(null);
 
         private static class Node<T> {
+
             public final T value;
             public final AtomicReference<Node<T>> next;
 
             public Node(T value) {
                 this.value = value;
-                this.next = new AtomicReference<Node<T>>(EMPTY);
+                this.next = new AtomicReference<Node<T>>(null);
             }
+
         }
+        private final AtomicReference<Node<T>> head;
+        private final AtomicReference<Node<T>> tail;
 
-        private static final Node DUMMY = new Node(null);
-
-        private final AtomicReference<Node<T>> head = new AtomicReference<Node<T>>(DUMMY);
-        private final AtomicReference<Node<T>> tail = new AtomicReference<Node<T>>(DUMMY);
+        public Queue() {
+            Node<T> empty = new Node<T>(null);
+            head = new AtomicReference<Node<T>>(empty);
+            tail = new AtomicReference<Node<T>>(empty);
+        }
 
         public boolean enqueue(T value) {
             Node<T> node = new Node<T>(value);
-            while (true) {
+            while(true) {
                 Node<T> last = tail.get();
                 Node<T> next = last.next.get();
                 if (last == tail.get()) {
-                    if (next == EMPTY) {
+                    if (next == null) {
                         if (last.next.compareAndSet(next, node)) {
                             tail.compareAndSet(last, node);
-                            return last == DUMMY;
+                            return last.value == null;
                         }
                     } else {
                         tail.compareAndSet(last, next);
@@ -118,20 +126,22 @@ import java.util.concurrent.atomic.AtomicReference;
                 Node<T> next = first.next.get();
                 if (first == head.get()) {
                     if (first == last) {
-                        if (next == DUMMY)
+                        if (next == null) {
                             throw new EmptyException();
+                        }
                         tail.compareAndSet(last, next);
                     } else {
                         T value = next.value;
-                        if (head.compareAndSet(first, next))
+                        if (head.compareAndSet(first, next)) {
                             return value;
+                        }
                     }
                 }
             }
         }
     }
 
-
     private static class EmptyException extends Exception {
+
     }
 }
